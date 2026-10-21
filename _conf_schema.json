@@ -1,0 +1,110 @@
+{
+    "api_key": {
+        "description": "悟声 API Key",
+        "hint": "在 https://www.wusound.cn/apiKey 创建，形如 sk-xxxxxxxx。只在创建时明文显示一次，注意保存",
+        "type": "string",
+        "default": ""
+    },
+    "voice_id": {
+        "description": "默认声音 ID",
+        "hint": "填角色 ID（用 /语音角色 命令可以直接看到）。写错时插件会尝试自动纠正",
+        "type": "string",
+        "default": ""
+    },
+    "preset": {
+        "description": "音质 / 速度档位",
+        "hint": "悟声 simple-generate 接口的 preset 参数。fast_* 系列速度更快、ultra 质量更高",
+        "type": "string",
+        "options": [
+            "fast_standard",
+            "fast_premium",
+            "fast_ultra",
+            "balance",
+            "stable",
+            "expressive"
+        ],
+        "default": "balance"
+    },
+    "language": {
+        "description": "语言",
+        "hint": "auto 自动识别，也可填 zh / en / ja 等具体语种代码",
+        "type": "string",
+        "default": "auto"
+    },
+    "speech_rate": {
+        "description": "语速",
+        "hint": "0.5 慢 ～ 2.0 快，1.0 为正常（接口 speechRate 参数）",
+        "type": "float",
+        "default": 1.0
+    },
+    "model": {
+        "description": "算法版本",
+        "hint": "悟声算法版本。留空则由官方自动选择；也可显式填 v3.0 或 v4.0（需账号/角色支持）",
+        "type": "string",
+        "default": ""
+    },
+    "srt": {
+        "description": "生成字幕",
+        "hint": "开启后合成接口附带字幕（srt 参数）。当前插件仅合成语音，字幕暂不单独展示，保留参数以便官方能力对齐",
+        "type": "bool",
+        "default": false
+    },
+    "stream": {
+        "description": "流式合成",
+        "hint": "开启流式返回（stream 参数）。普通 QQ 语音场景建议关闭",
+        "type": "bool",
+        "default": false
+    },
+    "max_chars": {
+        "description": "单次合成最大字数",
+        "hint": "QQ 语音最长约 60 秒，建议 150~250 字。手动命令超出会截断，自动模式超出则跳过",
+        "type": "int",
+        "default": 200
+    },
+    "timeout": {
+        "description": "合成超时（秒）",
+        "hint": "网络慢时可以调大",
+        "type": "int",
+        "default": 30
+    },
+    "cache_enabled": {
+        "description": "启用本地缓存",
+        "hint": "相同文字 + 相同参数不会重复调用接口，省点数",
+        "type": "bool",
+        "default": true
+    },
+    "auto_tts": {
+        "description": "AI 回复自动转语音",
+        "hint": "开启后机器人按照「自动语音概率」把回复合成语音（会消耗点数），建议先在单个群里试",
+        "type": "bool",
+        "default": false
+    },
+    "auto_tts_probability": {
+        "description": "自动语音概率（%）",
+        "hint": "0~100。100 表示每条回复都发语音，30 表示约三成回复发语音、其余保持文字；0 相当于关闭。可用 /语音概率 30 在线调整",
+        "type": "int",
+        "default": 100
+    },
+    "auto_tts_groups": {
+        "description": "自动语音生效的群",
+        "hint": "填群号，多个用逗号分隔；留空表示所有群都生效",
+        "type": "string",
+        "default": ""
+    },
+    "auto_tts_keep_text": {
+        "description": "自动语音时保留文字",
+        "hint": "关闭后只发语音不发文字",
+        "type": "bool",
+        "default": true
+    },
+    "send_mode": {
+        "description": "语音发送方式",
+        "hint": "component 为标准的语音消息组件（推荐）；若语音发不出去，可改为 raw 直接调用 OneBot 接口发送",
+        "type": "string",
+        "options": [
+            "component",
+            "raw"
+        ],
+        "default": "component"
+    }
+}

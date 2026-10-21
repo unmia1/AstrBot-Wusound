@@ -1,4 +1,4 @@
-"""悟声（Wusound）TTS 插件
+"""悟声（Wusound）TTS 插件 —— 完整版
 
 把文字通过悟声（https://www.wusound.cn）TTS 合成为拟真人声，并以 QQ 语音发送。
 
@@ -51,6 +51,7 @@ NOISE_PATTERN = re.compile(r"[*#`_>|~]")
 
 
 def hit_probability(probability: int) -> bool:
+    """按百分比概率掷一次骰子：100 必中，0 必不中。"""
     if probability >= 100:
         return True
     if probability <= 0:
@@ -63,6 +64,11 @@ class WusoundError(Exception):
 
 
 class WusoundClient:
+    """悟声开放接口的最小封装。
+
+    覆盖 simple-generate 的全部官方参数：
+    voiceId / text / preset / language / speechRate / model / srt / stream
+    """
 
     def __init__(self, api_key: str, timeout: float = 30.0) -> None:
         self.api_key = (api_key or "").strip()
@@ -110,6 +116,10 @@ class WusoundClient:
         srt: bool = False,
         stream: bool = False,
     ) -> bytes:
+        """合成一段语音，返回音频（mp3）字节。
+
+        覆盖悟声 simple-generate 的全部官方参数。
+        """
         payload: dict = {
             "voiceId": voice_id,
             "text": text,
@@ -177,9 +187,23 @@ class WusoundClient:
     "1.1.0",
 )
 class WusoundTTSPlugin(Star):
-    def __init__(self, context: Context, config: AstrBotConfig) -> None:
+    def __init__(self, context: Context, config: AstrBotConfig | None = None) -> None:
         super().__init__(context)
-        self.cfg = config
+        # config 允许为 None：当插件目录缺失 _conf_schema.json（例如从 GitHub
+        # 导入时漏传了该文件）时，AstrBot 会以单参数实例化，这里用空配置兜底，
+        # 保证插件仍可加载，只是所有配置回落到内置默认值。
+        if config is not None:
+            self.cfg = config
+        else:
+            try:
+                data_dir = Path(StarTools.get_data_dir())
+            except Exception:  # noqa: BLE001
+                data_dir = Path("data") / "astrbot_plugin_wusound_tts"
+            fallback_path = data_dir / "astrbot_plugin_wusound_tts_fallback.json"
+            self.cfg = AstrBotConfig(
+                config_path=str(fallback_path),
+                schema={},
+            )
 
         try:
             self.data_dir = Path(StarTools.get_data_dir())

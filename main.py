@@ -1,26 +1,13 @@
-"""悟声（Wusound）TTS 插件 —— 完整版
-
-把文字通过悟声（https://www.wusound.cn）TTS 合成为拟真人声，并以 QQ 语音发送。
-
-功能：
-- /语音 <文字>   手动合成语音
-- /语音角色       列出可用声音（含 ID、描述、模型版本、可用风格 prompts）
-- /语音概率 [0-100] 查看/设置自动语音概率
-- /语音清理       清空本地缓存
-- 开启 auto_tts 后，AI 回复按概率自动合成语音
-
-接口文档：https://dev.wusound.cn
-项目地址：https://github.com/unmia1/AstrBot-Wusound
-"""
-
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
 import random
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -184,7 +171,7 @@ class WusoundClient:
     "astrbot_plugin_wusound_tts",
     "unmia1",
     "调用悟声语音合成，把文字变成 QQ 语音",
-    "1.1.0",
+    "1.2.0",
 )
 class WusoundTTSPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None) -> None:
@@ -268,6 +255,15 @@ class WusoundTTSPlugin(Star):
     @property
     def stream_enabled(self) -> bool:
         return bool(self.cfg.get("stream", False))
+
+    @property
+    def voice_padding(self) -> float:
+        """语音末尾追加的静音时长（秒），用于延长语音长度。0 表示不追加。"""
+        try:
+            value = float(self.cfg.get("voice_padding", 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        return max(0.0, min(10.0, value))
 
     # ---------------------------------------------------------------- 命令
 
@@ -393,6 +389,31 @@ class WusoundTTSPlugin(Star):
         )
         yield event.plain_result(f"自动语音概率已设为 {value}%，{saved}。{tip}")
 
+    @filter.command("语音时长", alias={"语音延长", "语音静音"})
+    async def cmd_padding(self, event: AstrMessageEvent):
+        """查看或设置语音末尾追加的静音时长，用法：/语音时长 1"""
+        raw = event.message_str or ""
+        match = re.search(r"(\d+(?:\.\d+)?)", raw)
+        if not match:
+            yield event.plain_result(
+                f"当前语音末尾追加静音：{self.voice_padding:g} 秒\n"
+                "用法：/语音时长 1（0~10 秒，0 表示不追加，支持小数）\n"
+                "例如一段 3 秒的语音，追加 1 秒静音后发送出来就是 4 秒。"
+            )
+            return
+
+        value = max(0.0, min(10.0, float(match.group(1))))
+        self.cfg["voice_padding"] = value
+        saved = "已写入配置文件"
+        try:
+            await self.cfg.save_config_async()
+        except Exception as exc:  # noqa: BLE001
+            saved = f"但保存失败（{exc!r}），重启后可能丢失"
+        yield event.plain_result(
+            f"语音末尾静音已设为 {value:g} 秒，{saved}。\n"
+            "之后合成的语音都会在末尾追加这段静音，让语音变长。"
+        )
+
     # ------------------------------------------------------- 自动语音钩子
 
     @filter.on_decorating_result()
@@ -448,6 +469,7 @@ class WusoundTTSPlugin(Star):
             logger.warning(f"[wusound] 自动语音跳过: {exc!r}")
             return
 
+        audio_path = await self._apply_padding(audio_path)
         record = Record.fromFileSystem(str(audio_path))
         if bool(self.cfg.get("auto_tts_keep_text", True)):
             result.chain = [*result.chain, record]
@@ -540,10 +562,55 @@ class WusoundTTSPlugin(Star):
         target.write_bytes(audio)
         return target, False
 
+    async def _apply_padding(self, audio_path: Path) -> Path:
+        """在语音末尾追加静音，返回处理后的文件路径。
+
+        用 ffmpeg 的 apad 滤镜追加指定时长的静音（若 voice_padding <= 0 或
+        找不到 ffmpeg，则原样返回）。处理后的文件落在缓存目录，带 padding 标记，
+        便于复用；无 ffmpeg 时静默降级为原音频，不影响正常发送。
+        """
+        padding = self.voice_padding
+        if padding <= 0:
+            return audio_path
+
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            logger.warning("[wusound] 未找到 ffmpeg，跳过语音延长")
+            return audio_path
+
+        stem = audio_path.stem
+        padded = audio_path.with_name(f"{stem}_pad{padding:g}.mp3")
+        if padded.exists() and padded.stat().st_size > 0:
+            return padded
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                ffmpeg,
+                "-y",
+                "-i",
+                str(audio_path),
+                "-af",
+                f"apad=pad_dur={padding:g}",
+                "-c:a",
+                "libmp3lame",
+                "-q:a",
+                "9",
+                str(padded),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await proc.wait()
+            if proc.returncode == 0 and padded.exists() and padded.stat().st_size > 0:
+                return padded
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[wusound] 语音延长失败，改用原音频: {exc!r}")
+        return audio_path
+
     async def _deliver(
         self, event: AstrMessageEvent, audio_path: Path
     ) -> AsyncGenerator:
         """按配置的方式把语音发出去。"""
+        audio_path = await self._apply_padding(audio_path)
         mode = str(self.cfg.get("send_mode", "component") or "component").lower()
         if mode == "raw":
             try:

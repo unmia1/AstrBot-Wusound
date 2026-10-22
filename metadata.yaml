@@ -2,7 +2,7 @@ name: astrbot_plugin_wusound_tts
 display_name: 悟声语音合成
 short_desc: 悟声 TTS，让 AI 用真人声说话
 desc: 调用悟声（wusound）TTS 把文字合成拟真人声，以 QQ 语音发送；支持命令手动合成，也可让 AI 的回复按设定概率自动转成语音；覆盖 simple-generate 接口全部官方参数（preset/language/speechRate/model/srt/stream）
-version: 1.1.0
+version: 1.2.0
 author: unmia1
 repo: https://github.com/unmia1/AstrBot-Wusound
 astrbot_version: ">=4.0.0"

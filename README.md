@@ -1,7 +1,7 @@
 # AstrBot-Wusound
 
 [![AstrBot](https://img.shields.io/badge/AstrBot-%3E%3D4.0-blue)](https://github.com/AstrBotDevs/AstrBot)
-[![version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/unmia1/AstrBot-Wusound/releases)
+[![version](https://img.shields.io/badge/version-1.2.0-green)](https://github.com/unmia1/AstrBot-Wusound/releases)
 [![license](https://img.shields.io/badge/license-MIT-orange)](LICENSE)
 
 一个 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 插件：调用 [悟声 Wusound](https://www.wusound.cn) 的 TTS 接口，
